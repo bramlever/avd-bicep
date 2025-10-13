@@ -23,12 +23,27 @@ Start-Sleep -Seconds 30
 
 #=== DOWNLOAD EN INSTALLATIE VAN AVD TOOLING ===
 try {
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/bramlever/avd-bicep/main/AVDAgent.msi" -OutFile "$avdPath\AVDAgent.msi"
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/bramlever/avd-bicep/main/RDAgentBootLoader.msi" -OutFile "$avdPath\RDAgentBootLoader.msi"
-    "[$(Get-Date)] MSI-bestanden gedownload." | Out-File -FilePath $logPath -Append
+    $agentUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/AVDAgent.msi"
+    $bootloaderUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/RDAgentBootLoader.msi"
+    $agentDest = "$avdPath\AVDAgent.msi"
+    $bootloaderDest = "$avdPath\RDAgentBootLoader.msi"
 
-    Start-Process msiexec.exe -ArgumentList "/i $avdPath\AVDAgent.msi /quiet /norestart" -Wait
-    Start-Process msiexec.exe -ArgumentList "/i $avdPath\RDAgentBootLoader.msi /quiet /norestart" -Wait
+    Invoke-WebRequest -Uri $agentUrl -OutFile $agentDest -UseBasicParsing
+    Invoke-WebRequest -Uri $bootloaderUrl -OutFile $bootloaderDest -UseBasicParsing
+
+    $agentSize = (Get-Item $agentDest).Length
+    "[$(Get-Date)] Bestandsgrootte van AVDAgent.msi: $agentSize bytes" | Out-File -FilePath $logPath -Append
+
+    if ($agentSize -lt 1000000) {
+        "[$(Get-Date)] Download via Invoke-WebRequest lijkt corrupt. Probeer alternatieve methode..." | Out-File -FilePath $logPath -Append
+        $wc = New-Object System.Net.WebClient
+        $wc.DownloadFile($agentUrl, $agentDest)
+        $agentSize = (Get-Item $agentDest).Length
+        "[$(Get-Date)] Alternatieve download voltooid. Nieuwe bestandsgrootte: $agentSize bytes" | Out-File -FilePath $logPath -Append
+    }
+
+    Start-Process msiexec.exe -ArgumentList "/i $agentDest /quiet /norestart" -Wait
+    Start-Process msiexec.exe -ArgumentList "/i $bootloaderDest /quiet /norestart" -Wait
     "[$(Get-Date)] Agent en bootloader geïnstalleerd." | Out-File -FilePath $logPath -Append
 } catch {
     "[$(Get-Date)] Fout bij downloaden/installeren van tooling: $_" | Out-File -FilePath $logPath -Append
