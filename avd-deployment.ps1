@@ -1,7 +1,36 @@
-﻿param (
+﻿##final script
+
+param (
     [Parameter(Mandatory = $true)]
     [string]$registrationToken
 )
+
+New-Item -ItemType Directory -Path "C:\AVD" -Force | Out-Null
+
+# Download agent en bootloader
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/bramlever/avd-bicep/main/AVDAgent.msi" -OutFile "C:\AVD\AVDAgent.msi"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/bramlever/avd-bicep/main/RDAgentBootLoader.msi" -OutFile "C:\AVD\AVDBootLoader.msi"
+
+# Installeer silent
+Start-Process msiexec.exe -ArgumentList "/i C:\AVD\AVDAgent.msi /quiet /norestart" -Wait
+Start-Process msiexec.exe -ArgumentList "/i C:\AVD\AVDBootLoader.msi /quiet /norestart" -Wait
+
+# Controleer of agent nu aanwezig is
+$agentExe = "C:\Program Files\Microsoft RDInfra\RDInfraAgent\RDInfraAgent.exe"
+if (Test-Path $agentExe) {
+    & "$agentExe" /register:$registrationToken
+    "[$(Get-Date)] Registratie geslaagd" | Out-File -FilePath $logPath -Append
+} else {
+    "[$(Get-Date)] Fout: Agent nog steeds niet gevonden" | Out-File -FilePath $logPath -Append
+}
+
+
+$agentPath = "C:\Program Files\Microsoft RDInfra\RDInfraAgent.exe"
+if (-not (Test-Path $agentPath)) {
+    Write-Output "AVD-agent niet gevonden. Installatie wordt gestart..."
+    Invoke-WebRequest -Uri "https://aka.ms/avdagent" -OutFile "C:\AVD\AVDAgent.msi" -UseBasicParsing
+    Start-Process msiexec.exe -ArgumentList "/i C:\AVD\AVDAgent.msi /quiet /norestart" -Wait
+}
 
 # Logging pad
 $logPath = "C:\AVD\register.log"
