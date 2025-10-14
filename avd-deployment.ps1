@@ -6,17 +6,17 @@ param (
 )
 
 #=== PADEN DEFINIËREN ===
-$avdPath = "C:\AVD"
-$logPath = "$avdPath\register.log"
-$tokenPath = "$avdPath\registrationToken.txt"
-$tokenFallbackPath = "C:\Program Files\Microsoft RDInfra\registrationToken.txt"
-$installScriptPath = "$avdPath\InstallAVDAgent.ps1"
+#$avdPath = "C:\AVD"
+#$logPath = "$avdPath\register.log"
+#$tokenPath = "$avdPath\registrationToken.txt"
+#$tokenFallbackPath = "C:\Program Files\Microsoft RDInfra\registrationToken.txt"
+#$installScriptPath = "$avdPath\InstallAVDAgent.ps1"
 
-[CmdletBinding(SupportsShouldProcess)]
-param(
-    [Parameter(Position = 0, Mandatory)]
-    [string]$RegistrationToken
-)
+New-Item -ItemType Directory -Path $avdPath -Force | Out-Null
+"[$(Get-Date)] Script gestart" | Out-File -FilePath $logPath -Append
+"[$(Get-Date)] Token ontvangen: $registrationToken" | Out-File -FilePath $logPath -Append
+Set-Content -Path $tokenPath -Value $registrationToken
+"[$(Get-Date)] Token opgeslagen in $tokenPath" | Out-File -FilePath $logPath -Append
 
 <#
         Notes about this script:
