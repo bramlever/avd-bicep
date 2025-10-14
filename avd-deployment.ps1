@@ -8,7 +8,6 @@ param (
 $avdPath = "C:\AVD"
 $logPath = "$avdPath\register.log"
 $tokenPath = "$avdPath\registrationToken.txt"
-$agentExe = "C:\Program Files\Microsoft RDInfra\RDInfraAgent\RDInfraAgent.exe"
 
 #=== VOORBEREIDING ===
 New-Item -ItemType Directory -Path $avdPath -Force | Out-Null
@@ -50,31 +49,18 @@ try {
     exit 1
 }
 
-#=== CONTROLEER OF DE AGENT BESTAAT ===
-if (-not (Test-Path $agentExe)) {
-    "[$(Get-Date)] AVD-agent niet gevonden. Alternatieve installatie via aka.ms wordt gestart..." | Out-File -FilePath $logPath -Append
-
-    try {
-        $fallbackInstaller = "$avdPath\AVDAgentFallback.msi"
-        Invoke-WebRequest -Uri "https://aka.ms/avdagent" -OutFile $fallbackInstaller -UseBasicParsing
-        Start-Process msiexec.exe -ArgumentList "/i $fallbackInstaller /quiet /norestart" -Wait
-        "[$(Get-Date)] Alternatieve installatie voltooid." | Out-File -FilePath $logPath -Append
-    } catch {
-        "[$(Get-Date)] Fout bij alternatieve installatie: $_" | Out-File -FilePath $logPath -Append
-        exit 1
-    }
-}
-
 #=== REGISTRATIE BIJ HOSTPOOL ===
-if (Test-Path $agentExe) {
+$registrationExe = "C:\Program Files\Microsoft RDInfra\RDInfraAgent\RDInfraAgentRegistration.exe"
+
+if (Test-Path $registrationExe) {
     try {
-        & "$agentExe" /register:$registrationToken
+        "[$(Get-Date)] Registratie-executable gevonden: $registrationExe" | Out-File -FilePath $logPath -Append
+        & "$registrationExe" /register:$registrationToken
         "[$(Get-Date)] Registratie bij hostpool succesvol uitgevoerd." | Out-File -FilePath $logPath -Append
     } catch {
         "[$(Get-Date)] Fout bij registratie: $_" | Out-File -FilePath $logPath -Append
-        exit 1
     }
 } else {
-    "[$(Get-Date)] Fout: AVD-agent executable nog steeds niet gevonden." | Out-File -FilePath $logPath -Append
-    exit 1
+    "[$(Get-Date)] Fout: Registratie-executable niet gevonden op verwachte locatie." | Out-File -FilePath $logPath -Append
+    Get-ChildItem "C:\Program Files\Microsoft RDInfra" -Recurse | Out-File -FilePath $logPath -Append
 }
