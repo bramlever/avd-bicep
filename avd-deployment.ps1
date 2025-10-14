@@ -35,8 +35,8 @@ Start-Sleep -Seconds 30
 
 #=== DOWNLOAD EN INSTALLATIE VAN AVD TOOLING ===
 try {
-    $agentUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/AVDAgent.msi"
-    $bootloaderUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/RDAgentBootLoader.msi"
+    $agentUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/Microsoft.RDInfra.RDAgent.Installer-x64-1.0.12183.900.msi"
+    $bootloaderUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/Microsoft.RDInfra.RDAgentBootLoader.Installer-x64-1.0.11388.1600.msi"
     $agentDest = "$avdPath\AVDAgent.msi"
     $bootloaderDest = "$avdPath\RDAgentBootLoader.msi"
 
