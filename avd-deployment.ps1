@@ -37,8 +37,8 @@ Start-Sleep -Seconds 30
 try {
     $agentUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/Microsoft.RDInfra.RDAgent.Installer-x64-1.0.12183.900.msi"
     $bootloaderUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/Microsoft.RDInfra.RDAgentBootLoader.Installer-x64-1.0.11388.1600.msi"
-    $agentDest = "$avdPath\AVDAgent.msi"
-    $bootloaderDest = "$avdPath\RDAgentBootLoader.msi"
+    $agentDest = "$avdPath\Microsoft.RDInfra.RDAgent.Installer-x64-1.0.12183.900.msi"
+    $bootloaderDest = "$avdPath\Microsoft.RDInfra.RDAgentBootLoader.Installer-x64-1.0.11388.1600.msi"
 
     Invoke-WebRequest -Uri $agentUrl -OutFile $agentDest -UseBasicParsing
     Invoke-WebRequest -Uri $bootloaderUrl -OutFile $bootloaderDest -UseBasicParsing
