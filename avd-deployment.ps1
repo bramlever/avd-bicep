@@ -62,6 +62,30 @@ try {
     exit 1
 }
 
+#=== INSTALLATIE VAN SxSStack COMPONENT ===
+try {
+    $sxsUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/SxSStack-1.0.2507.25500.msi"
+    $sxsDest = "$avdPath\SxSStack-1.0.2507.25500.msi"
+
+    Invoke-WebRequest -Uri $sxsUrl -OutFile $sxsDest -UseBasicParsing
+    $sxsSize = (Get-Item $sxsDest).Length
+    "[$(Get-Date)] Bestandsgrootte van SxSStack.msi: $sxsSize bytes" | Out-File -FilePath $logPath -Append
+
+    if ($sxsSize -lt 1000000) {
+        "[$(Get-Date)] Download van SxSStack lijkt corrupt. Probeer alternatieve methode..." | Out-File -FilePath $logPath -Append
+        $wc = New-Object System.Net.WebClient
+        $wc.DownloadFile($sxsUrl, $sxsDest)
+        $sxsSize = (Get-Item $sxsDest).Length
+        "[$(Get-Date)] Alternatieve download voltooid. Nieuwe bestandsgrootte: $sxsSize bytes" | Out-File -FilePath $logPath -Append
+    }
+
+    Start-Process msiexec.exe -ArgumentList "/i $sxsDest /quiet /norestart" -Wait
+    "[$(Get-Date)] SxSStack component geïnstalleerd." | Out-File -FilePath $logPath -Append
+} catch {
+    "[$(Get-Date)] Fout bij downloaden/installeren van SxSStack: $_" | Out-File -FilePath $logPath -Append
+    exit 1
+}
+
 #=== CONTROLE NA INSTALLATIE ===
 if (Test-Path $infraPath) {
     "[$(Get-Date)] RDInfra-map aanwezig na installatie." | Out-File -FilePath $logPath -Append
@@ -69,7 +93,6 @@ if (Test-Path $infraPath) {
 } else {
     "[$(Get-Date)] RDInfra-map ontbreekt na installatie. Agent mogelijk niet correct geïnstalleerd." | Out-File -FilePath $logPath -Append
 }
-
 
 "[$(Get-Date)] Herstart van de VM wordt uitgevoerd..." | Out-File -FilePath $logPath -Append
 Restart-Computer -Force
