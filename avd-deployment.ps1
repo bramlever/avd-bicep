@@ -33,56 +33,53 @@ try {
 Start-Sleep -Seconds 30
 "[$(Get-Date)] Wachtperiode voltooid" | Out-File -FilePath $logPath -Append
 
-#=== DOWNLOAD EN INSTALLATIE VAN AVD TOOLING ===
+#=== DOWNLOAD VAN INSTALLERS ===
 try {
     $agentUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/Microsoft.RDInfra.RDAgent.Installer-x64-1.0.12183.900.msi"
     $bootloaderUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/Microsoft.RDInfra.RDAgentBootLoader.Installer-x64-1.0.11388.1600.msi"
+    $sxsUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/SxSStack-1.0.2507.25500.msi"
+
     $agentDest = "$avdPath\Microsoft.RDInfra.RDAgent.Installer-x64-1.0.12183.900.msi"
     $bootloaderDest = "$avdPath\Microsoft.RDInfra.RDAgentBootLoader.Installer-x64-1.0.11388.1600.msi"
+    $sxsDest = "$avdPath\SxSStack-1.0.2507.25500.msi"
 
     Invoke-WebRequest -Uri $agentUrl -OutFile $agentDest -UseBasicParsing
     Invoke-WebRequest -Uri $bootloaderUrl -OutFile $bootloaderDest -UseBasicParsing
+    Invoke-WebRequest -Uri $sxsUrl -OutFile $sxsDest -UseBasicParsing
 
-    $agentSize = (Get-Item $agentDest).Length
-    "[$(Get-Date)] Bestandsgrootte van AVDAgent.msi: $agentSize bytes" | Out-File -FilePath $logPath -Append
-
-    if ($agentSize -lt 1000000) {
-        "[$(Get-Date)] Download via Invoke-WebRequest lijkt corrupt. Probeer alternatieve methode..." | Out-File -FilePath $logPath -Append
-        $wc = New-Object System.Net.WebClient
-        $wc.DownloadFile($agentUrl, $agentDest)
-        $agentSize = (Get-Item $agentDest).Length
-        "[$(Get-Date)] Alternatieve download voltooid. Nieuwe bestandsgrootte: $agentSize bytes" | Out-File -FilePath $logPath -Append
-    }
-
-    Start-Process msiexec.exe -ArgumentList "/i $agentDest /quiet /norestart" -Wait
-    Start-Process msiexec.exe -ArgumentList "/i $bootloaderDest /quiet /norestart" -Wait
-    "[$(Get-Date)] Agent en bootloader geïnstalleerd." | Out-File -FilePath $logPath -Append
+    "[$(Get-Date)] Installers gedownload." | Out-File -FilePath $logPath -Append
 } catch {
-    "[$(Get-Date)] Fout bij downloaden/installeren van tooling: $_" | Out-File -FilePath $logPath -Append
+    "[$(Get-Date)] Fout bij downloaden van installers: $_" | Out-File -FilePath $logPath -Append
+    exit 1
+}
+
+#=== INSTALLATIE VAN AVD AGENT MET TOKEN ===
+try {
+    Start-Process msiexec.exe -ArgumentList "/i `"$agentDest`" REGISTRATIONTOKEN=`"$registrationToken`" /quiet /norestart" -Wait
+    "[$(Get-Date)] Agent geïnstalleerd met token." | Out-File -FilePath $logPath -Append
+    Start-Sleep -Seconds 2
+} catch {
+    "[$(Get-Date)] Fout bij installatie van Agent: $_" | Out-File -FilePath $logPath -Append
+    exit 1
+}
+
+#=== INSTALLATIE VAN BOOTLOADER ===
+try {
+    Start-Process msiexec.exe -ArgumentList "/i `"$bootloaderDest`" /quiet /norestart" -Wait
+    "[$(Get-Date)] Bootloader geïnstalleerd." | Out-File -FilePath $logPath -Append
+    Start-Sleep -Seconds 2
+} catch {
+    "[$(Get-Date)] Fout bij installatie van Bootloader: $_" | Out-File -FilePath $logPath -Append
     exit 1
 }
 
 #=== INSTALLATIE VAN SxSStack COMPONENT ===
 try {
-    $sxsUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/SxSStack-1.0.2507.25500.msi"
-    $sxsDest = "$avdPath\SxSStack-1.0.2507.25500.msi"
-
-    Invoke-WebRequest -Uri $sxsUrl -OutFile $sxsDest -UseBasicParsing
-    $sxsSize = (Get-Item $sxsDest).Length
-    "[$(Get-Date)] Bestandsgrootte van SxSStack.msi: $sxsSize bytes" | Out-File -FilePath $logPath -Append
-
-    if ($sxsSize -lt 1000000) {
-        "[$(Get-Date)] Download van SxSStack lijkt corrupt. Probeer alternatieve methode..." | Out-File -FilePath $logPath -Append
-        $wc = New-Object System.Net.WebClient
-        $wc.DownloadFile($sxsUrl, $sxsDest)
-        $sxsSize = (Get-Item $sxsDest).Length
-        "[$(Get-Date)] Alternatieve download voltooid. Nieuwe bestandsgrootte: $sxsSize bytes" | Out-File -FilePath $logPath -Append
-    }
-
-    Start-Process msiexec.exe -ArgumentList "/i $sxsDest /quiet /norestart" -Wait
+    Start-Process msiexec.exe -ArgumentList "/i `"$sxsDest`" /quiet /norestart" -Wait
     "[$(Get-Date)] SxSStack component geïnstalleerd." | Out-File -FilePath $logPath -Append
+    Start-Sleep -Seconds 2
 } catch {
-    "[$(Get-Date)] Fout bij downloaden/installeren van SxSStack: $_" | Out-File -FilePath $logPath -Append
+    "[$(Get-Date)] Fout bij installatie van SxSStack: $_" | Out-File -FilePath $logPath -Append
     exit 1
 }
 
