@@ -30,7 +30,7 @@ try {
 }
 
 #=== WACHTPERIODE VOOR SERVICES ===
-Start-Sleep -Seconds 30
+Start-Sleep -Seconds 5
 "[$(Get-Date)] Wachtperiode voltooid" | Out-File -FilePath $logPath -Append
 
 #=== DOWNLOAD VAN INSTALLERS ===
@@ -91,5 +91,5 @@ if (Test-Path $infraPath) {
     "[$(Get-Date)] RDInfra-map ontbreekt na installatie. Agent mogelijk niet correct geïnstalleerd." | Out-File -FilePath $logPath -Append
 }
 
-"[$(Get-Date)] Herstart van de VM wordt uitgevoerd..." | Out-File -FilePath $logPath -Append
-Restart-Computer -Force
+#"[$(Get-Date)] Herstart van de VM wordt uitgevoerd..." | Out-File -FilePath $logPath -Append
+#Restart-Computer -Force
