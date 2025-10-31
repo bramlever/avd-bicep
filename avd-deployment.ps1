@@ -5,7 +5,7 @@ param (
 )
 
 #=== PADEN DEFINIËREN ===
-$avdPath = "C:\AVD"
+$avdPath = "C:\Packages\AVD"
 $logPath = "$avdPath\register.log"
 $tokenPath = "$avdPath\registrationToken.txt"
 $infraPath = "C:\Program Files\Microsoft RDInfra"
