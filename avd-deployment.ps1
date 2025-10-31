@@ -42,8 +42,8 @@ try {
     $bootloaderUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/Microsoft.RDInfra.RDAgentBootLoader.Installer-x64-1.0.11388.1600.msi"
     $sxsUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/SxSStack-1.0.2507.25500.msi"
 
-    $agentDest = "$avdPath\Microsoft.RDInfra.RDAgent.Installer-x64.msi"
-    $bootloaderDest = "$avdPath\Microsoft.RDInfra.RDAgentBootLoader.Installer-x64.msi"
+    $agentDest = "$avdPath\RDAgent.msi"
+    $bootloaderDest = "$avdPath\BootLoader.msi"
     $sxsDest = "$avdPath\SxSStack.msi"
 
     Invoke-WebRequest -Uri $agentUrl -OutFile $agentDest -UseBasicParsing
@@ -108,6 +108,22 @@ try {
 } catch {
     "[$(Get-Date)] Fout bij FSLogix-configuratie: $_" | Out-File -FilePath $logPath -Append
     exit 1
+}
+
+#=== NTFS-permissies instellen op Azure Files share ===
+try {
+    $sharePath = "\\$storageAccountName.file.core.windows.net\profiles"
+    $acl = Get-Acl $sharePath
+
+    # Geef Modify-rechten aan Domain Users
+    $identity = "GREEN\Domain Users"
+    $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($identity, "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $acl.AddAccessRule($accessRule)
+
+    Set-Acl -Path $sharePath -AclObject $acl
+    "[$(Get-Date)] NTFS-permissies ingesteld voor $identity op $sharePath" | Out-File -FilePath $logPath -Append
+} catch {
+    "[$(Get-Date)] Fout bij instellen NTFS-permissies: $_" | Out-File -FilePath $logPath -Append
 }
 
 #=== CONTROLE NA INSTALLATIE ===
