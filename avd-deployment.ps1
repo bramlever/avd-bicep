@@ -121,5 +121,64 @@ if (Test-Path $infraPath) {
     "[$(Get-Date)] RDInfra-map ontbreekt na installatie. Agent mogelijk niet correct geïnstalleerd." | Out-File -FilePath $logPath -Append
 }
 
+#=== PARAMETERS OPSLAAN VOOR NTFS-TAKEN NA REBOOT ===
+$paramObject = @{
+    storageAccountName = $storageAccountName
+    fileShareName = $fileShareName
+}
+$paramPath = "$avdPath\ntfsparams.json"
+$paramObject | ConvertTo-Json | Out-File -FilePath $paramPath -Encoding UTF8
+"[$(Get-Date)] NTFS-parameters opgeslagen in $paramPath" | Out-File -FilePath $logPath -Append
+
+#=== SCRIPT VOOR NTFS-PERMISSIES NA REBOOT AANMAKEN ===
+$ntfsScriptPath = "$avdPath\ntfs-after-reboot.ps1"
+@"
+`$log = '$avdPath\ntfs-after-reboot.log'
+function Log(`$m) { "`$((Get-Date).ToString('yyyy-MM-dd HH:mm:ss')) - `$m" | Out-File -FilePath `$log -Append }
+
+Log "Script gestart"
+
+`$params = Get-Content '$paramPath' | ConvertFrom-Json
+`$share = "\\`$(`$params.storageAccountName).file.core.windows.net\`$(`$params.fileShareName)"
+
+`$attempt = 0
+`$max = 10
+`$ok = `$false
+
+while (-not `$ok -and `$attempt -lt `$max) {
+    if (Test-Path `$share) {
+        `$ok = `$true
+        Log "Share bereikbaar: `$share"
+    } else {
+        Log "Share niet bereikbaar, poging `$(`$attempt + 1)"
+        Start-Sleep -Seconds 15
+        `$attempt++
+    }
+}
+
+if (`$ok) {
+    try {
+        `$acl = Get-Acl `$share
+        `$rule = New-Object System.Security.AccessControl.FileSystemAccessRule("Domain Users", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+        `$acl.AddAccessRule(`$rule)
+        Set-Acl -Path `$share -AclObject `$acl
+        Log "NTFS-permissies succesvol toegepast"
+    } catch {
+        Log "FOUT bij Set-Acl: `$($_)"
+    }
+} else {
+    Log "Share niet bereikbaar na `$max pogingen"
+}
+"@ | Out-File -FilePath $ntfsScriptPath -Encoding UTF8
+"[$(Get-Date)] NTFS-script opgeslagen op $ntfsScriptPath" | Out-File -FilePath $logPath -Append
+
+#=== SCHEDULED TASK AANMAKEN VOOR NTFS-SCRIPT ===
+$taskName = "RunNTFSSetupAfterReboot"
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -File `"$ntfsScriptPath`""
+$trigger = New-ScheduledTaskTrigger -AtStartup
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force
+"[$(Get-Date)] Scheduled Task '$taskName' aangemaakt" | Out-File -FilePath $logPath -Append
+
 "[$(Get-Date)] Herstart van de VM wordt uitgevoerd..." | Out-File -FilePath $logPath -Append
 Restart-Computer -Force
