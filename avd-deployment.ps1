@@ -113,22 +113,6 @@ try {
     exit 1
 }
 
-#=== NTFS-permissies instellen op Azure Files share ===
-try {
-    $sharePath = "\\$storageAccountName.file.core.windows.net\$fileShareName"
-    $acl = Get-Acl $sharePath
-
-    # Geef Modify-rechten aan Domain Users
-    $identity = "GREEN\Domain Users"
-    $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($identity, "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
-    $acl.AddAccessRule($accessRule)
-
-    Set-Acl -Path $sharePath -AclObject $acl
-    "[$(Get-Date)] NTFS-permissies ingesteld voor $identity op $sharePath" | Out-File -FilePath $logPath -Append
-} catch {
-    "[$(Get-Date)] Fout bij instellen NTFS-permissies: $_" | Out-File -FilePath $logPath -Append
-}
-
 #=== CONTROLE NA INSTALLATIE ===
 if (Test-Path $infraPath) {
     "[$(Get-Date)] RDInfra-map aanwezig na installatie." | Out-File -FilePath $logPath -Append
