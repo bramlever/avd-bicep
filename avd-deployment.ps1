@@ -4,7 +4,10 @@ param (
     [string]$registrationToken,
 
     [Parameter(Mandatory = $true)]
-    [string]$storageAccountName
+    [string]$storageAccountName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$fileShareName
 )
 
 #=== PADEN DEFINIËREN ===
@@ -93,7 +96,7 @@ try {
         New-Item -Path $fslogixRegPath -Force | Out-Null
     }
 
-    $fslogixShare = "\\$storageAccountName.file.core.windows.net\profiles"
+    $fslogixShare = "\\$storageAccountName.file.core.windows.net\$fileShareName"
 
     Set-ItemProperty -Path $fslogixRegPath -Name "Enabled" -Value 1 -Type DWord
     New-ItemProperty -Path $fslogixRegPath -Name "VHDLocations" -PropertyType MultiString -Value $fslogixShare -Force
@@ -112,7 +115,7 @@ try {
 
 #=== NTFS-permissies instellen op Azure Files share ===
 try {
-    $sharePath = "\\$storageAccountName.file.core.windows.net\profiles"
+    $sharePath = "\\$storageAccountName.file.core.windows.net\$fileShareName"
     $acl = Get-Acl $sharePath
 
     # Geef Modify-rechten aan Domain Users
