@@ -1,5 +1,4 @@
-﻿#=== PARAMETERS ===
-param (
+﻿param (
     [Parameter(Mandatory = $true)]
     [string]$registrationToken,
 
@@ -10,127 +9,87 @@ param (
     [string]$fileShareName
 )
 
-#=== PADEN DEFINIËREN ===
+# === Logging setup ===
 $avdPath = "C:\Packages\AVD"
-$logPath = "$avdPath\register.log"
-$tokenPath = "$avdPath\registrationToken.txt"
+$logPath = "$avdPath\setup.log"
+New-Item -ItemType Directory -Path $avdPath -Force | Out-Null
+Start-Transcript -Path $logPath -Append
+"[$(Get-Date)] Script gestart" | Out-File -FilePath $logPath -Append
+
+# === AVD agent installatie ===
 $infraPath = "C:\Program Files\Microsoft RDInfra"
 $infraTokenPath = "$infraPath\registrationToken.txt"
+New-Item -ItemType Directory -Path $infraPath -Force | Out-Null
+Set-Content -Path $infraTokenPath -Value $registrationToken
 
-#=== VOORBEREIDING ===
-New-Item -ItemType Directory -Path $avdPath -Force | Out-Null
-"[$(Get-Date)] Script gestart" | Out-File -FilePath $logPath -Append
-"[$(Get-Date)] Token ontvangen: $registrationToken" | Out-File -FilePath $logPath -Append
+$agentUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/Microsoft.RDInfra.RDAgent.Installer-x64-1.0.12183.900.msi"
+$bootloaderUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/Microsoft.RDInfra.RDAgentBootLoader.Installer-x64-1.0.11388.1600.msi"
+$sxsUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/SxSStack-1.0.2507.25500.msi"
 
-Set-Content -Path $tokenPath -Value $registrationToken
-"[$(Get-Date)] Token opgeslagen in $tokenPath" | Out-File -FilePath $logPath -Append
+$agentDest = "$avdPath\RDAgent.msi"
+$bootloaderDest = "$avdPath\BootLoader.msi"
+$sxsDest = "$avdPath\SxSStack.msi"
 
-#=== AANMAKEN RDInfra-PAD EN TOKENKOPIE ===
-try {
-    New-Item -ItemType Directory -Path $infraPath -Force | Out-Null
-    Set-Content -Path $infraTokenPath -Value $registrationToken
-    "[$(Get-Date)] Token ook opgeslagen in $infraTokenPath" | Out-File -FilePath $logPath -Append
-} catch {
-    "[$(Get-Date)] Fout bij aanmaken RDInfra-map of tokenbestand: $_" | Out-File -FilePath $logPath -Append
-    exit 1
-}
+Invoke-WebRequest -Uri $agentUrl -OutFile $agentDest -UseBasicParsing
+Invoke-WebRequest -Uri $bootloaderUrl -OutFile $bootloaderDest -UseBasicParsing
+Invoke-WebRequest -Uri $sxsUrl -OutFile $sxsDest -UseBasicParsing
 
-#=== WACHTPERIODE VOOR SERVICES ===
-Start-Sleep -Seconds 5
-"[$(Get-Date)] Wachtperiode voltooid" | Out-File -FilePath $logPath -Append
+Start-Process msiexec.exe -ArgumentList "/i `"$agentDest`" REGISTRATIONTOKEN=`"$registrationToken`" /quiet /norestart" -Wait
+Start-Process msiexec.exe -ArgumentList "/i `"$bootloaderDest`" /quiet /norestart" -Wait
+Start-Process msiexec.exe -ArgumentList "/i `"$sxsDest`" /quiet /norestart" -Wait
 
-#=== DOWNLOAD VAN INSTALLERS ===
-try {
-    $agentUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/Microsoft.RDInfra.RDAgent.Installer-x64-1.0.12183.900.msi"
-    $bootloaderUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/Microsoft.RDInfra.RDAgentBootLoader.Installer-x64-1.0.11388.1600.msi"
-    $sxsUrl = "https://raw.githubusercontent.com/bramlever/avd-bicep/main/SxSStack-1.0.2507.25500.msi"
+"[$(Get-Date)] AVD agent en componenten geïnstalleerd." | Out-File -FilePath $logPath -Append
 
-    $agentDest = "$avdPath\RDAgent.msi"
-    $bootloaderDest = "$avdPath\BootLoader.msi"
-    $sxsDest = "$avdPath\SxSStack.msi"
+# === FSLogix installatie ===
+$fslogixUrl = "https://aka.ms/fslogix_download"
+$tempZip = "$env:TEMP\fslogix.zip"
+$tempDir = "$env:TEMP\fslogix"
+Invoke-WebRequest -Uri $fslogixUrl -OutFile $tempZip
+Expand-Archive -Path $tempZip -DestinationPath $tempDir -Force
+$installer = Get-ChildItem -Path $tempDir -Recurse -Filter "*FSLogixAppsSetup.exe" | Select-Object -First 1
+Start-Process -FilePath $installer.FullName -ArgumentList "/quiet /norestart" -Wait
+"[$(Get-Date)] FSLogix geïnstalleerd." | Out-File -FilePath $logPath -Append
 
-    Invoke-WebRequest -Uri $agentUrl -OutFile $agentDest -UseBasicParsing
-    Invoke-WebRequest -Uri $bootloaderUrl -OutFile $bootloaderDest -UseBasicParsing
-    Invoke-WebRequest -Uri $sxsUrl -OutFile $sxsDest -UseBasicParsing
+# === FSLogix configuratie ===
+$fslogixRegPath = "HKLM:\SOFTWARE\FSLogix\Profiles"
+$fslogixLogPath = "HKLM:\SOFTWARE\FSLogix\Logging"
+New-Item -Path $fslogixRegPath -Force | Out-Null
+New-Item -Path $fslogixLogPath -Force | Out-Null
 
-    "[$(Get-Date)] Installers gedownload." | Out-File -FilePath $logPath -Append
-} catch {
-    "[$(Get-Date)] Fout bij downloaden van installers: $_" | Out-File -FilePath $logPath -Append
-    exit 1
-}
+$fslogixShare = "\\$storageAccountName.file.core.windows.net\$fileShareName"
+Set-ItemProperty -Path $fslogixRegPath -Name "Enabled" -Value 1
+New-ItemProperty -Path $fslogixRegPath -Name "VHDLocations" -PropertyType MultiString -Value $fslogixShare -Force
+Set-ItemProperty -Path $fslogixRegPath -Name "VolumeType" -Value "vhdx"
+Set-ItemProperty -Path $fslogixRegPath -Name "SizeInMBs" -Value 30000
+Set-ItemProperty -Path $fslogixRegPath -Name "IsDynamic" -Value 1
+Set-ItemProperty -Path $fslogixRegPath -Name "AccessNetworkAsComputer" -Value 1
+Set-ItemProperty -Path $fslogixRegPath -Name "DeleteLocalProfileWhenVHDMountFails" -Value 1
+Set-ItemProperty -Path $fslogixRegPath -Name "FlipFlopProfileDirectoryName" -Value 1
+Set-ItemProperty -Path $fslogixRegPath -Name "ProfileType" -Value 3
+Set-ItemProperty -Path $fslogixRegPath -Name "SIDDirNamePattern" -Value "%sid%_%username%"
 
-#=== INSTALLATIE VAN AVD AGENT MET TOKEN ===
-try {
-    Start-Process msiexec.exe -ArgumentList "/i `"$agentDest`" REGISTRATIONTOKEN=`"$registrationToken`" /quiet /norestart" -Wait
-    "[$(Get-Date)] Agent geïnstalleerd met token." | Out-File -FilePath $logPath -Append
-    Start-Sleep -Seconds 2
-} catch {
-    "[$(Get-Date)] Fout bij installatie van Agent: $_" | Out-File -FilePath $logPath -Append
-    exit 1
-}
+Set-ItemProperty -Path $fslogixLogPath -Name "Enabled" -Value 1
+Set-ItemProperty -Path $fslogixLogPath -Name "LogPath" -Value "C:\ProgramData\FSLogix\Logs"
 
-#=== INSTALLATIE VAN BOOTLOADER ===
-try {
-    Start-Process msiexec.exe -ArgumentList "/i `"$bootloaderDest`" /quiet /norestart" -Wait
-    "[$(Get-Date)] Bootloader geïnstalleerd." | Out-File -FilePath $logPath -Append
-    Start-Sleep -Seconds 2
-} catch {
-    "[$(Get-Date)] Fout bij installatie van Bootloader: $_" | Out-File -FilePath $logPath -Append
-    exit 1
-}
+# === Entra Kerberos registry keys ===
+$cloudKerbPath1 = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\CloudKerberosTicketRetrieval"
+New-Item -Path $cloudKerbPath1 -Force | Out-Null
+Set-ItemProperty -Path $cloudKerbPath1 -Name "Enabled" -Value 1
 
-#=== INSTALLATIE VAN SxSStack COMPONENT ===
-try {
-    Start-Process msiexec.exe -ArgumentList "/i `"$sxsDest`" /quiet /norestart" -Wait
-    "[$(Get-Date)] SxSStack component geïnstalleerd." | Out-File -FilePath $logPath -Append
-    Start-Sleep -Seconds 2
-} catch {
-    "[$(Get-Date)] Fout bij installatie van SxSStack: $_" | Out-File -FilePath $logPath -Append
-    exit 1
-}
+$cloudKerbPath2 = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Parameters"
+New-Item -Path $cloudKerbPath2 -Force | Out-Null
+Set-ItemProperty -Path $cloudKerbPath2 -Name "CloudKerberosTicketRetrievalEnabled" -Value 1
 
-#=== FSLogix configuratie ===
-try {
-    $fslogixRegPath = "HKLM:\SOFTWARE\FSLogix\Profiles"
-    if (-not (Test-Path $fslogixRegPath)) {
-        New-Item -Path $fslogixRegPath -Force | Out-Null
-    }
+"[$(Get-Date)] FSLogix en Entra Kerberos geconfigureerd." | Out-File -FilePath $logPath -Append
 
-    $fslogixShare = "\\$storageAccountName.file.core.windows.net\$fileShareName"
-
-    Set-ItemProperty -Path $fslogixRegPath -Name "Enabled" -Value 1 -Type DWord
-    New-ItemProperty -Path $fslogixRegPath -Name "VHDLocations" -PropertyType MultiString -Value $fslogixShare -Force
-    Set-ItemProperty -Path $fslogixRegPath -Name "VolumeType" -Value "vhdx" -Type String
-    Set-ItemProperty -Path $fslogixRegPath -Name "SizeInMBs" -Value 30000 -Type DWord
-    Set-ItemProperty -Path $fslogixRegPath -Name "IsDynamic" -Value 1 -Type DWord
-    Set-ItemProperty -Path $fslogixRegPath -Name "AccessNetworkAsComputer" -Value 1 -Type DWord
-    Set-ItemProperty -Path $fslogixRegPath -Name "DeleteLocalProfileWhenVHDMountFails" -Value 1 -Type DWord
-    Set-ItemProperty -Path $fslogixRegPath -Name "FlipFlopProfileDirectoryName" -Value 1 -Type DWord
-
-    "[$(Get-Date)] FSLogix registry settings toegepast." | Out-File -FilePath $logPath -Append
-} catch {
-    "[$(Get-Date)] Fout bij FSLogix-configuratie: $_" | Out-File -FilePath $logPath -Append
-    exit 1
-}
-
-#=== CONTROLE NA INSTALLATIE ===
-if (Test-Path $infraPath) {
-    "[$(Get-Date)] RDInfra-map aanwezig na installatie." | Out-File -FilePath $logPath -Append
-    Get-ChildItem $infraPath -Recurse | Out-File -FilePath $logPath -Append
-} else {
-    "[$(Get-Date)] RDInfra-map ontbreekt na installatie. Agent mogelijk niet correct geïnstalleerd." | Out-File -FilePath $logPath -Append
-}
-
-#=== PARAMETERS OPSLAAN VOOR NTFS-TAKEN NA REBOOT ===
+# === NTFS-permissies voorbereiden ===
 $paramObject = @{
     storageAccountName = $storageAccountName
     fileShareName = $fileShareName
 }
 $paramPath = "$avdPath\ntfsparams.json"
 $paramObject | ConvertTo-Json | Out-File -FilePath $paramPath -Encoding UTF8
-"[$(Get-Date)] NTFS-parameters opgeslagen in $paramPath" | Out-File -FilePath $logPath -Append
 
-#=== SCRIPT VOOR NTFS-PERMISSIES NA REBOOT AANMAKEN ===
 $ntfsScriptPath = "$avdPath\ntfs-after-reboot.ps1"
 @"
 `$log = '$avdPath\ntfs-after-reboot.log'
@@ -159,7 +118,7 @@ while (-not `$ok -and `$attempt -lt `$max) {
 if (`$ok) {
     try {
         `$acl = Get-Acl `$share
-        `$rule = New-Object System.Security.AccessControl.FileSystemAccessRule("Domain Users", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
+        `$rule = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone", "Modify", "ContainerInherit,ObjectInherit", "None", "Allow")
         `$acl.AddAccessRule(`$rule)
         Set-Acl -Path `$share -AclObject `$acl
         Log "NTFS-permissies succesvol toegepast"
@@ -170,15 +129,14 @@ if (`$ok) {
     Log "Share niet bereikbaar na `$max pogingen"
 }
 "@ | Out-File -FilePath $ntfsScriptPath -Encoding UTF8
-"[$(Get-Date)] NTFS-script opgeslagen op $ntfsScriptPath" | Out-File -FilePath $logPath -Append
 
-#=== SCHEDULED TASK AANMAKEN VOOR NTFS-SCRIPT ===
 $taskName = "RunNTFSSetupAfterReboot"
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -File `"$ntfsScriptPath`""
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force
-"[$(Get-Date)] Scheduled Task '$taskName' aangemaakt" | Out-File -FilePath $logPath -Append
 
-"[$(Get-Date)] Herstart van de VM wordt uitgevoerd..." | Out-File -FilePath $logPath -Append
-Restart-Computer -Force
+# === SMB firewall rule (optioneel) ===
+New-NetFirewallRule -DisplayName "Allow SMB Outbound" -Direction Outbound -Protocol TCP -RemotePort 445 -Action Allow
+
+"[$
