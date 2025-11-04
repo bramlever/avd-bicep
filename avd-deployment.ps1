@@ -62,8 +62,6 @@ New-ItemProperty -Path $fslogixRegPath -Name "VHDLocations" -PropertyType MultiS
 Set-ItemProperty -Path $fslogixRegPath -Name "VolumeType" -Value "vhdx"
 Set-ItemProperty -Path $fslogixRegPath -Name "SizeInMBs" -Value 30000
 Set-ItemProperty -Path $fslogixRegPath -Name "IsDynamic" -Value 1
-Set-ItemProperty -Path $fslogixRegPath -Name "AccessNetworkAsComputer" -Value 1
-Set-ItemProperty -Path $fslogixRegPath -Name "DeleteLocalProfileWhenVHDMountFails" -Value 1
 Set-ItemProperty -Path $fslogixRegPath -Name "FlipFlopProfileDirectoryName" -Value 1
 Set-ItemProperty -Path $fslogixRegPath -Name "ProfileType" -Value 3
 Set-ItemProperty -Path $fslogixRegPath -Name "SIDDirNamePattern" -Value "%sid%_%username%"
@@ -81,6 +79,15 @@ New-Item -Path $cloudKerbPath2 -Force | Out-Null
 Set-ItemProperty -Path $cloudKerbPath2 -Name "CloudKerberosTicketRetrievalEnabled" -Value 1
 
 "[$(Get-Date)] FSLogix en Entra Kerberos geconfigureerd." | Out-File -FilePath $logPath -Append
+
+# === SMB firewall rule (optioneel) ===
+New-NetFirewallRule -DisplayName "Allow SMB Outbound" -Direction Outbound -Protocol TCP -RemotePort 445 -Action Allow
+
+"[$(Get-Date)] Script voltooid. VM wordt herstart..." | Out-File -FilePath $logPath -Append
+Stop-Transcript
+
+# === Reboot to finalize registration ===
+Restart-Computer -Force
 
 # === NTFS-permissies voorbereiden ===
 $paramObject = @{
