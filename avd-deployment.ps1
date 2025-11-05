@@ -109,6 +109,7 @@ try {
     Write-Log "[$(Get-Date)] Entra ID join via SYSTEM uitgevoerd."
 } catch {
     Write-Log "[$(Get-Date)] Entra ID join mislukt: $_"
+}
 
 Start-Sleep -Seconds 120
 
@@ -121,6 +122,5 @@ Get-Service RDAgentBootLoader | Add-Content -Path $logPath
 
 Write-Log "[$(Get-Date)] Script voltooid. VM wordt herstart..."
 Stop-Transcript
-
 
 Restart-Computer -Force
