@@ -80,6 +80,9 @@ Set-ItemProperty -Path $fslogixRegPath -Name "SIDDirNamePattern" -Value "%sid%_%
 Set-ItemProperty -Path $fslogixLogPath -Name "Enabled" -Value 1
 Set-ItemProperty -Path $fslogixLogPath -Name "LogPath" -Value "C:\ProgramData\FSLogix\Logs"
 
+# === SMB firewall rule ===
+New-NetFirewallRule -DisplayName "Allow SMB Outbound" -Direction Outbound -Protocol TCP -RemotePort 445 -Action Allow
+
 # === Entra Kerberos registry keys ===
 $cloudKerbPath1 = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\CloudKerberosTicketRetrieval"
 New-Item -Path $cloudKerbPath1 -Force | Out-Null
@@ -91,18 +94,23 @@ Set-ItemProperty -Path $cloudKerbPath2 -Name "CloudKerberosTicketRetrievalEnable
 
 Write-Log "[$(Get-Date)] FSLogix en Entra Kerberos geconfigureerd."
 
-# === Entra ID join ===
+# === Entra ID join via SYSTEM scheduled task ===
 try {
-    Write-Log "[$(Get-Date)] Entra ID join gestart..."
-    dsregcmd /join
+    Write-Log "[$(Get-Date)] Entra ID join gestart via geplande taak..."
+
+    $taskName = "EntraIDJoin"
+    $taskScript = "$env:TEMP\entrajoin.cmd"
+    Set-Content -Path $taskScript -Value "dsregcmd /join"
+
+    schtasks /create /tn $taskName /tr $taskScript /sc once /st 00:00 /ru SYSTEM /rl HIGHEST /f | Out-Null
+    schtasks /run /tn $taskName | Out-Null
+
     Start-Sleep -Seconds 10
-    Write-Log "[$(Get-Date)] Entra ID join uitgevoerd."
+    Write-Log "[$(Get-Date)] Entra ID join via SYSTEM uitgevoerd."
 } catch {
     Write-Log "[$(Get-Date)] Entra ID join mislukt: $_"
-}
 
-# === SMB firewall rule ===
-New-NetFirewallRule -DisplayName "Allow SMB Outbound" -Direction Outbound -Protocol TCP -RemotePort 445 -Action Allow
+Start-Sleep -Seconds 120
 
 # === Validatie ===
 Write-Log "[$(Get-Date)] Entra ID status:"
@@ -113,5 +121,6 @@ Get-Service RDAgentBootLoader | Add-Content -Path $logPath
 
 Write-Log "[$(Get-Date)] Script voltooid. VM wordt herstart..."
 Stop-Transcript
+
 
 Restart-Computer -Force
