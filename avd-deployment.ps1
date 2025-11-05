@@ -10,11 +10,22 @@
 )
 
 # === Logging setup ===
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $avdPath = "C:\Packages\AVD"
-$logPath = "$avdPath\setup.log"
+$logPath = "$avdPath\setup_$timestamp.log"
 New-Item -ItemType Directory -Path $avdPath -Force | Out-Null
-Start-Transcript -Path $logPath -Append
-"[$(Get-Date)] Script gestart" | Out-File -FilePath $logPath -Append
+Start-Transcript -Path $logPath
+
+function Write-Log {
+    param([string]$message)
+    try {
+        $message | Add-Content -Path $logPath
+    } catch {
+        Write-Host "Logfout: $message"
+    }
+}
+
+Write-Log "[$(Get-Date)] Script gestart"
 
 # === AVD agent installatie ===
 $infraPath = "C:\Program Files\Microsoft RDInfra"
@@ -38,7 +49,7 @@ Start-Process msiexec.exe -ArgumentList "/i `"$agentDest`" REGISTRATIONTOKEN=`"$
 Start-Process msiexec.exe -ArgumentList "/i `"$bootloaderDest`" /quiet /norestart" -Wait
 Start-Process msiexec.exe -ArgumentList "/i `"$sxsDest`" /quiet /norestart" -Wait
 
-"[$(Get-Date)] AVD agent en componenten geïnstalleerd." | Out-File -FilePath $logPath -Append
+Write-Log "[$(Get-Date)] AVD agent en componenten geïnstalleerd."
 
 # === FSLogix installatie ===
 $fslogixUrl = "https://aka.ms/fslogix_download"
@@ -48,7 +59,7 @@ Invoke-WebRequest -Uri $fslogixUrl -OutFile $tempZip
 Expand-Archive -Path $tempZip -DestinationPath $tempDir -Force
 $installer = Get-ChildItem -Path $tempDir -Recurse -Filter "*FSLogixAppsSetup.exe" | Select-Object -First 1
 Start-Process -FilePath $installer.FullName -ArgumentList "/quiet /norestart" -Wait
-"[$(Get-Date)] FSLogix geïnstalleerd." | Out-File -FilePath $logPath -Append
+Write-Log "[$(Get-Date)] FSLogix geïnstalleerd."
 
 # === FSLogix configuratie ===
 $fslogixRegPath = "HKLM:\SOFTWARE\FSLogix\Profiles"
@@ -78,13 +89,29 @@ $cloudKerbPath2 = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Parameter
 New-Item -Path $cloudKerbPath2 -Force | Out-Null
 Set-ItemProperty -Path $cloudKerbPath2 -Name "CloudKerberosTicketRetrievalEnabled" -Value 1
 
-"[$(Get-Date)] FSLogix en Entra Kerberos geconfigureerd." | Out-File -FilePath $logPath -Append
+Write-Log "[$(Get-Date)] FSLogix en Entra Kerberos geconfigureerd."
 
-# === SMB firewall rule (optioneel) ===
+# === Entra ID join ===
+try {
+    Write-Log "[$(Get-Date)] Entra ID join gestart..."
+    dsregcmd /join
+    Start-Sleep -Seconds 10
+    Write-Log "[$(Get-Date)] Entra ID join uitgevoerd."
+} catch {
+    Write-Log "[$(Get-Date)] Entra ID join mislukt: $_"
+}
+
+# === SMB firewall rule ===
 New-NetFirewallRule -DisplayName "Allow SMB Outbound" -Direction Outbound -Protocol TCP -RemotePort 445 -Action Allow
 
-"[$(Get-Date)] Script voltooid. VM wordt herstart..." | Out-File -FilePath $logPath -Append
+# === Validatie ===
+Write-Log "[$(Get-Date)] Entra ID status:"
+dsregcmd /status | Add-Content -Path $logPath
+
+Write-Log "[$(Get-Date)] AVD agent status:"
+Get-Service RDAgentBootLoader | Add-Content -Path $logPath
+
+Write-Log "[$(Get-Date)] Script voltooid. VM wordt herstart..."
 Stop-Transcript
 
-# === Reboot to finalize registration ===
 Restart-Computer -Force
