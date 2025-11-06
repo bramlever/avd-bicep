@@ -111,9 +111,14 @@ try {
     Write-Log "[$(Get-Date)] Entra ID join mislukt: $_"
 }
 
-Start-Sleep -Seconds 60
+Start-Sleep -Seconds 20
 
 # === Intune MDM-enrollment ===
+
+New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\MDM" -Force
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\MDM" -Name "AutoEnrollMDM" -Value 1 -Type DWord
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\MDM" -Name "UseAADCredentialType" -Value 1 -Type DWord
+
 try {
     Write-Log "[$(Get-Date)] Intune MDM-enrollment gestart..."
     Start-Process -FilePath "C:\Windows\System32\DeviceEnroller.exe" -ArgumentList "/c /AutoEnrollMDM" -Wait
@@ -122,7 +127,7 @@ try {
     Write-Log "[$(Get-Date)] Intune MDM-enrollment mislukt: $_"
 }
 
-Start-Sleep -Seconds 60
+Start-Sleep -Seconds 20
 
 # === Validatie ===
 Write-Log "[$(Get-Date)] Entra ID status:"
