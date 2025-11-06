@@ -111,7 +111,18 @@ try {
     Write-Log "[$(Get-Date)] Entra ID join mislukt: $_"
 }
 
-Start-Sleep -Seconds 120
+Start-Sleep -Seconds 60
+
+# === Intune MDM-enrollment ===
+try {
+    Write-Log "[$(Get-Date)] Intune MDM-enrollment gestart..."
+    Start-Process -FilePath "C:\Windows\System32\DeviceEnroller.exe" -ArgumentList "/c /AutoEnrollMDM" -Wait
+    Write-Log "[$(Get-Date)] Intune MDM-enrollment uitgevoerd."
+} catch {
+    Write-Log "[$(Get-Date)] Intune MDM-enrollment mislukt: $_"
+}
+
+Start-Sleep -Seconds 60
 
 # === Validatie ===
 Write-Log "[$(Get-Date)] Entra ID status:"
