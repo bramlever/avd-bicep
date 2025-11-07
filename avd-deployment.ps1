@@ -72,6 +72,16 @@ Set-ItemProperty -Path $fslogixRegPath -Name "Enabled" -Value 1
 New-ItemProperty -Path $fslogixRegPath -Name "VHDLocations" -PropertyType MultiString -Value $fslogixShare -Force
 Set-ItemProperty -Path $fslogixRegPath -Name "VolumeType" -Value "vhdx"
 Set-ItemProperty -Path $fslogixRegPath -Name "SizeInMBs" -Value 30000
+New-ItemProperty -Path $fslogixRegPath -Name Enabled -PropertyType dword -Value 1 -Force
+New-ItemProperty -Path $fslogixRegPath -Name DeleteLocalProfileWhenVHDShouldApply -PropertyType dword -Value 1 -Force
+New-ItemProperty -Path $fslogixRegPath -Name FlipFlopProfileDirectoryName -PropertyType dword -Value 1 -Force
+New-ItemProperty -Path $fslogixRegPath -Name LockedRetryCount -PropertyType dword -Value 3 -Force
+New-ItemProperty -Path $fslogixRegPath -Name LockedRetryInterval -PropertyType dword -Value 15 -Force
+New-ItemProperty -Path $fslogixRegPath -Name ProfileType -PropertyType dword -Value 0 -Force
+New-ItemProperty -Path $fslogixRegPath -Name ReAttachIntervalSeconds -PropertyType dword -Value 15 -Force
+New-ItemProperty -Path $fslogixRegPath -Name ReAttachRetryCount -PropertyType dword -Value 3 -Force
+New-ItemProperty -Path $fslogixRegPath -Name SizeInMBs -PropertyType dword -Value 30000 -Force
+New-ItemProperty -Path $fslogixRegPath -Name VolumeType -PropertyType string -Value vhdx -Force
 Set-ItemProperty -Path $fslogixRegPath -Name "IsDynamic" -Value 1
 Set-ItemProperty -Path $fslogixRegPath -Name "FlipFlopProfileDirectoryName" -Value 1
 Set-ItemProperty -Path $fslogixRegPath -Name "ProfileType" -Value 3
@@ -91,6 +101,13 @@ Set-ItemProperty -Path $cloudKerbPath1 -Name "Enabled" -Value 1
 $cloudKerbPath2 = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Parameters"
 New-Item -Path $cloudKerbPath2 -Force | Out-Null
 Set-ItemProperty -Path $cloudKerbPath2 -Name "CloudKerberosTicketRetrievalEnabled" -Value 1
+
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\CloudKerberosTicketRetrieval" -Name "Enbaled" -PropertyType DWord -Value 1 -Force
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Parameters" -Name "CloudKerberosTicketRetrievalEnabled" -PropertyType DWord -Value 1 -Force
+
+New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\AzureADAccount" -Force
+
+New-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\AzureADAccount" -Name "LoadCredKeyFromProfile" -PropertyType DWord -Value 1 -Force
 
 Write-Log "[$(Get-Date)] FSLogix en Entra Kerberos geconfigureerd."
 
