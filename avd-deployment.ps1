@@ -102,7 +102,7 @@ $cloudKerbPath2 = "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Parameter
 New-Item -Path $cloudKerbPath2 -Force | Out-Null
 Set-ItemProperty -Path $cloudKerbPath2 -Name "CloudKerberosTicketRetrievalEnabled" -Value 1
 
-New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\CloudKerberosTicketRetrieval" -Name "Enbaled" -PropertyType DWord -Value 1 -Force
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\CloudKerberosTicketRetrieval" -Name "Enabled" -PropertyType DWord -Value 1 -Force
 New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Parameters" -Name "CloudKerberosTicketRetrievalEnabled" -PropertyType DWord -Value 1 -Force
 
 New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\AzureADAccount" -Force
