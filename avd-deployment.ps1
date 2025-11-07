@@ -111,6 +111,22 @@ New-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\AzureADAccount" -Name 
 
 Write-Log "[$(Get-Date)] FSLogix en Entra Kerberos geconfigureerd."
 
+# Voeg de registry key toe voor FSLogix Kerberos ondersteuning
+$regPath = "HKLM:\SOFTWARE\FSLogix\Profiles"
+$regName = "AccessNetworkAsComputerObject"
+$regValue = 1
+
+# Controleer of het pad bestaat, zo niet, maak het aan
+if (-not (Test-Path $regPath)) {
+    New-Item -Path $regPath -Force | Out-Null
+}
+
+# Voeg de waarde toe of werk deze bij
+Set-ItemProperty -Path $regPath -Name $regName -Value $regValue -Type DWord
+
+Write-Host "FSLogix registry key ingesteld: $regName = $regValue"
+
+
 # === Entra ID join via SYSTEM scheduled task ===
 try {
     Write-Log "[$(Get-Date)] Entra ID join gestart via geplande taak..."
