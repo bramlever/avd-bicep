@@ -136,6 +136,21 @@ New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\MDM" -F
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\MDM" -Name "AutoEnrollMDM" -Value 1 -Type DWord
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\MDM" -Name "UseAADCredentialType" -Value 1 -Type DWord
 
+# Zorg dat je als administrator draait
+$registryPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\MDM"
+
+# Maak de sleutel aan als die nog niet bestaat
+if (-not (Test-Path $registryPath)) {
+    New-Item -Path $registryPath -Force | Out-Null
+}
+
+# Zet de vereiste waarden
+Set-ItemProperty -Path $registryPath -Name "AutoEnrollMDM" -Value 1
+Set-ItemProperty -Path $registryPath -Name "UseAADCredentialType" -Value 1
+Set-ItemProperty -Path $registryPath -Name "MDMApplicationID" -Value "{0000000a-0000-0000-c000-000000000000}"
+
+Write-Host "MDM auto-enrollment is geconfigureerd. Herstart vereist om inschrijving te starten."
+
 try {
     Write-Log "[$(Get-Date)] Intune MDM-enrollment gestart..."
     Start-Process -FilePath "C:\Windows\System32\DeviceEnroller.exe" -ArgumentList "/c /AutoEnrollMDM" -Wait
